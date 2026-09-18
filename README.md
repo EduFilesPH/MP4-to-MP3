@@ -23,6 +23,6 @@ npm run dev
 npm run build
 ```
 
-The first conversion in a browser session downloads the FFmpeg WebAssembly core from jsDelivr.
+The FFmpeg WebAssembly core is bundled into the production build and served from the same origin as the app, avoiding runtime CDN dependency.
 
 Use only media you own or have permission to convert.
