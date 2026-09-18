@@ -1,5 +1,5 @@
 import { FFmpeg } from '@ffmpeg/ffmpeg';
-import { fetchFile, toBlobURL } from '@ffmpeg/util';
+import { fetchFile } from '@ffmpeg/util';
 import './styles.css';
 
 const app = document.querySelector('#app');
@@ -168,7 +168,8 @@ let ffmpegLoaded = false;
 let outputUrl = null;
 
 const MAX_FILE_SIZE = 750 * 1024 * 1024;
-const CORE_BASE_URL = 'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.10/dist/esm';
+const CORE_BASE_URL = '/ffmpeg';
+const FFMPEG_LOAD_TIMEOUT_MS = 45000;
 
 function formatBytes(bytes) {
   if (!bytes) return '0 B';
@@ -277,13 +278,25 @@ async function loadFFmpeg() {
     setProgress(mapped, 'Converting to MP3…', 'Extracting and encoding the audio track.');
   });
 
-  const [coreURL, wasmURL] = await Promise.all([
-    toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.js`, 'text/javascript'),
-    toBlobURL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, 'application/wasm'),
-  ]);
+  const coreURL = new URL(`${CORE_BASE_URL}/ffmpeg-core.js`, window.location.origin).href;
+  const wasmURL = new URL(`${CORE_BASE_URL}/ffmpeg-core.wasm`, window.location.origin).href;
 
-  setProgress(12, 'Loading conversion engine…', 'Starting WebAssembly audio engine.');
-  await ffmpeg.load({ coreURL, wasmURL });
+  setProgress(12, 'Loading conversion engine…', 'Starting the local WebAssembly audio engine.');
+
+  let timeoutId;
+  try {
+    await Promise.race([
+      ffmpeg.load({ coreURL, wasmURL }),
+      new Promise((_, reject) => {
+        timeoutId = window.setTimeout(
+          () => reject(new Error('FFmpeg initialization timed out. Please refresh the page and try again.')),
+          FFMPEG_LOAD_TIMEOUT_MS,
+        );
+      }),
+    ]);
+  } finally {
+    if (timeoutId) window.clearTimeout(timeoutId);
+  }
 
   ffmpegLoaded = true;
 }
@@ -351,7 +364,7 @@ async function convertToMp3() {
     console.error(error);
     setStep(1);
     showError(
-      'Conversion could not be completed. Check your internet connection for the first-time FFmpeg download, then try again. ' +
+      'Conversion could not be completed. Refresh the page and try again. ' +
       (error?.message || '')
     );
     setProgress(0, 'Conversion stopped', 'Please review the error below.');
