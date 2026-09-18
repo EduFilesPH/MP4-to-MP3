@@ -2,6 +2,10 @@
 
 A browser-based MP4/video to MP3 converter built with Vite and ffmpeg.wasm.
 
+## Live app
+
+https://mp4-to-mp3-chi.vercel.app
+
 ## Privacy
 
 Media conversion happens client-side in the user's browser. Selected media files are not uploaded to this app.
